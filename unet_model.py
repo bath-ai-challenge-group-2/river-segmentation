@@ -4,7 +4,7 @@ from keras.optimizers import Adam
 import numpy as np
 import tensorflow.compat.v1 as tf
 import matplotlib.pyplot as plt
-from keras.layers import Conv2D, UpSampling2D, MaxPooling2D, Dropout, concatenate, Input
+from keras.layers import Conv2D, UpSampling2D, MaxPooling2D, Dropout, concatenate, Input, Flatten, Dense
 from keras.models import Model
 from keras import regularizers
 from sklearn import metrics
@@ -56,19 +56,19 @@ def unet_model_def(reg,dropout):
     input = Input((256,256,3))
     out1, conv1 = Down_block(input, 32, 1, (1,1), 2, dropout, 'relu',regularizers.l2(reg))
     out2, conv2 = Down_block(out1, 64, 1, (1,1), 2, dropout, 'relu',regularizers.l2(reg))
-    out3, conv3 = Down_block(out2, 128, 1, (1,1), 2, dropout, 'relu',regularizers.l2(reg))
-    out4, conv4 = Down_block(out3, 256, 1, (1,1), 2, dropout, 'relu',regularizers.l2(reg))
-    out5, conv5 = Down_block(out4, 512, 1, (1,1), 2, dropout, 'relu',regularizers.l2(reg))
+    #out3, conv3 = Down_block(out2, 128, 1, (1,1), 2, dropout, 'relu',regularizers.l2(reg))
+    #out4, conv4 = Down_block(out3, 256, 1, (1,1), 2, dropout, 'relu',regularizers.l2(reg))
+    #out5, conv5 = Down_block(out4, 512, 1, (1,1), 2, dropout, 'relu',regularizers.l2(reg))
     
-    out6 = Middle_block(out5, 1024, 1, (1,1),'relu',regularizers.l2(reg))
+    out3 = Middle_block(out2, 1024, 1, (1,1),'relu',regularizers.l2(reg))
     
-    out7 = Up_block(out6,conv5, 512, 1, (1,1),(2,2), dropout, 'relu',regularizers.l2(reg))
-    out8 = Up_block(out7,conv4, 256, 1, (1,1),(2,2), dropout, 'relu',regularizers.l2(reg))
-    out9 = Up_block(out8,conv3 ,128, 1, (1,1),(2,2), dropout, 'relu',regularizers.l2(reg))
-    out10 = Up_block(out9,conv2, 64, 1, (1,1),(2,2), dropout, 'relu',regularizers.l2(reg))
-    out11 = Up_block(out10,conv1, 32, 1, (1,1),(2,2), dropout, 'relu',regularizers.l2(reg))
-    out12 = Output(out11,1,1,'sigmoid')
-    model = Model(inputs=[input],outputs = [out12])
+    #out7 = Up_block(out6,conv5, 512, 1, (1,1),(2,2), dropout, 'relu',regularizers.l2(reg))
+    #out8 = Up_block(out7,conv4, 256, 1, (1,1),(2,2), dropout, 'relu',regularizers.l2(reg))
+    #out9 = Up_block(out8,conv3 ,128, 1, (1,1),(2,2), dropout, 'relu',regularizers.l2(reg))
+    out4 = Up_block(out3,conv2, 64, 1, (1,1),(2,2), dropout, 'relu',regularizers.l2(reg))
+    out5 = Up_block(out4,conv1, 32, 1, (1,1),(2,2), dropout, 'relu',regularizers.l2(reg))
+    out6 = Output(out5,1,1,'sigmoid')
+    model = Model(inputs=[input],outputs = [out6])
     
     return model
 
@@ -76,12 +76,13 @@ def unet_model_def(reg,dropout):
 def hyper_tuning():
     
     for i in range(10):
-        #l2 = np.linspace(0.001,0.1, 11)
-        dropout = np.linspace(0.1,0.5, 5)
+        l2 = np.linspace(0.001,0.1, 10)
+        dropout = np.linspace(0.1,0.5, 9)
         
-        rand2 = random.randint(6)
+        rand1 = random.randint(10)
+        rand2 = random.randint(9)
         
-        model = unet_model_def(0.1, dropout[rand2])
+        model = unet_model_def(l2[rand1], dropout[rand2])
         model.compile(optimizer=Adam(lr = 1e-4), loss= dice_coef_loss,  metrics = [auc])
     
         history = model.fit(X_new,y_new, batch_size = 8 ,epochs = 1, verbose=1, validation_data=(X_test, y_test))
@@ -93,7 +94,7 @@ def hyper_tuning():
         test = model.predict(test_image_reshaped)
         test = test.reshape(256,256)
         
-        file_name = r'DO(%s).jpg'%(dropout[rand2])
+        file_name = r'L2(%s)-DO(%s).jpg'%(l2[rand1],dropout[rand2])
         plt.imsave(r'C:\Users\josep\OneDrive\Desktop\mres year programming\AI challenge\trial maps\%s'%file_name, test)
 
 model = unet_model_def(0.03, 0.14)
@@ -103,8 +104,8 @@ history = model.fit(X_new,y_new, batch_size = 8 ,epochs = 5, verbose=1, validati
        
 hyper_tuning()
 
-image_no = 2
-test_image = X_test[image_no]
+image_no = 1
+test_image = X_test[image_no].reshape(256,256)
 test_mask = y_test[image_no].reshape(256,256)
 test_image_reshaped = test_image.reshape(1,256,256,3)
 test = model.predict(test_image_reshaped)
